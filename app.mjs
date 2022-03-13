@@ -66,7 +66,7 @@ const fetchPage = async (url, cookie=[], depth=1) => {
 
     console.log('no available days.. fetching next page');
 
-    if (depth == 3) {
+    if (depth == 4) {
         console.log(`maximum depth [${depth}] reached.. exiting`);
         return [];
     }
