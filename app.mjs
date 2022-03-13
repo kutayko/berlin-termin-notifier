@@ -8,9 +8,16 @@ const AMT_URL = process.env.AMT_URL;
 const AMT_NAME = process.env.AMT_NAME;
 const SERVICE_BERLIN_URL = process.env.SERVICE_BERLIN_URL;
 
+const HEADERS = {
+    'accept': '*/*',
+    'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+    'User-Agent': process.env.USER_AGENT
+};
+
 const app = async () => {
     // Fetch Page
-    const availableDays = await fetchPage(AMT_URL);
+    const cookie = await fetchCookie(AMT_URL);
+    const availableDays = await fetchPage(AMT_URL, cookie);
 
     if(availableDays.length){
         console.log("available days found:");
@@ -38,14 +45,12 @@ const app = async () => {
     return noResult;
 };
 
-const fetchPage = async (url, depth=1) => {
+const fetchPage = async (url, cookie=[], depth=1) => {
     console.log(`depth [${depth}]`);
 
     const response = await fetch(url, {
         redirect: 'follow',
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.78 Safari/537.36'
-        }
+        headers: { ...HEADERS, cookie }
     });
     const raw = await response.text();
     const html = parse(raw);
@@ -59,12 +64,13 @@ const fetchPage = async (url, depth=1) => {
         return availableDays;
     }
 
+    console.log('no available days.. fetching next page');
+
     if (depth == 3) {
         console.log(`maximum depth [${depth}] reached.. exiting`);
         return [];
     }
 
-    console.log('no available days.. fetching next page');
     const a = html.querySelector('.next a');
     if (a) {
         const nextUrl = `${SERVICE_BERLIN_URL}${a.getAttribute('href')}`;
@@ -72,7 +78,7 @@ const fetchPage = async (url, depth=1) => {
         await delay(5000);
         console.log("waited 5 seconds..");
 
-        return fetchPage(nextUrl, depth + 1);
+        return fetchPage(nextUrl, cookie, depth + 1);
     }
 
     console.log('no next url.. exiting');
@@ -97,5 +103,15 @@ const serialize = (availableDays) => availableDays
     .join('\n');
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
+
+const fetchCookie = async (url) => {
+    const response = await fetch(url, {
+        redirect: 'manual',
+        headers: HEADERS
+    });
+    return response.headers.raw()['set-cookie']
+        .map(c => c.split(';')[0])
+        .join(';');
+};
 
 export { app };
